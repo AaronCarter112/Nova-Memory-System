@@ -1,211 +1,200 @@
-# Nova Memory System (mem0-dspy fork)
+# Memory-Enabled Chatbot with DSPy
 
-A **memory-enabled AI chatbot backend** built on **FastAPI + DSPy + Ollama + Qdrant**.
+This repository demonstrates building intelligent memory-enabled chatbots using **DSPy** and **Qdrant** for persistent conversational memory. I implemented the core features from Mem0 API from scratch to showcase what it truly takes to give memory to LLMs.
 
-This repo is a fork/extension of `mem0-dspy`, focused on turning “memory” into a real product feature:
-- **automatic long-term memory extraction**
-- **semantic retrieval** for personalization
-- **memory management commands** (forget/list/search/count/clear)
-- **semantic deduplication** to prevent repeated saves
 
-> If you're building a “Nova”-style local assistant that actually remembers things, this project is the backbone.
+![Memory-Enabled Chatbot Demo](assets/demo.png)
+Simple code that does gives long-term, cross-session, user-scoped, attributes-tagged memory to LLMs.
 
----
 
-## What Nova does
+> **📺 Watch the Full video for free**  
+> **[How to build your own long-term Agentic Memory System for LLMs | Mem0 from scratch in DSPy](https://youtu.be/n4GPdsQnHqc)**  
 
-### Chat flow
-The `/chat` endpoint:
-1. Detects memory commands (forget/list/search/count/clear) and returns immediately if triggered.  
-2. Retrieves relevant memories from Qdrant using semantic search.  
-3. Generates a response via DSPy (LiteLLM) pointed at Ollama’s OpenAI-compatible API.  
-4. Optionally saves a new memory using a DSPy extraction step.  
+## Support
 
-(See `main.py` and `mem/response_generator.py`.) fileciteturn1file4 fileciteturn1file9
+If you find this content helpful, please consider supporting my work on Patreon. Your support helps me create more in-depth tutorials and content. My Patreon hosts all the code, projects, slides, write-ups I have ever made on my YouTube channel. 
 
----
+[<img src="https://c5.patreon.com/external/logo/become_a_patron_button.png" alt="Become a Patron!" width="200">](https://www.patreon.com/NeuralBreakdownwithAVB)
 
-## Features (implemented)
 
-### 1) Long-term memory storage in Qdrant
-Memories are stored as vectors + payload:
-- `user_id`
-- `memory_text`
-- `categories` (fixed ontology)
-- `date`
-- `fact_key` (identity/override key)
+## Relevant external links
 
-The Qdrant collection is created on startup and indexed for `user_id`, `categories`, and `fact_key`. fileciteturn1file2
+The architecture is inspired heavily by Mem0. Here are some links to get started with Mem0.
 
-### 2) Semantic retrieval (meaning-based search)
-For each user message, Nova embeds the text and retrieves the top N similar memories. fileciteturn1file9
+- Check out Mem0 here: https://t.co/h3U8W1Lr5u
+- Mem0 Github - https://mem0.dev/github/avb
+- Get Mem0 API Key - https://t.co/lmFqnI5CkV
+- Mem0 Paper: https://arxiv.org/abs/2504.19413
 
-### 3) Category-based organization
-Supported categories:
-- `personal_details`
-- `user_preferences`
-- `projects`
-- `routines`
-- `meta`
-- `general` fileciteturn1file3
+I also used QDrant as my vector database, and DSPy to generate structured outputs and do tool-calls.
 
-### 4) Identity fact updates via `fact_key`
-If a memory uses a stable `fact_key` (e.g. `profile.location.current`) it can be treated as a single source of truth. fileciteturn1file10
+- QDrant: https://qdrant.tech/
+- Self hosting Qdrant: https://qdrant.tech/documentation/quickstart/
+- DSPy: https://dspy.ai/
 
-### 5) Semantic deduplication (for `other.misc`)
-When the extracted `fact_key` is `other.misc`, Nova checks for highly similar memories before saving (default 0.90 similarity). fileciteturn1file14 fileciteturn1file6
+## Features
 
-### 6) Memory management commands
-Built-in commands (natural language patterns):
-- **Forget**: “forget that I like pizza” (semantic delete, default 0.85) fileciteturn1file5
-- **Clear all**: “forget everything” fileciteturn1file5
-- **List**: “list my memories” (grouped by category) fileciteturn1file11
-- **Search**: “search memories about coffee” fileciteturn1file11
-- **Count**: “how many memories do you have?” (with category breakdown) fileciteturn1file11
+- **Persistent Memory**: Store and retrieve user-specific memories using vector similarity search
+- **Smart Retrieval**: Category-based memory organization with semantic search
+- **ReAct Agents**: Tool-calling agents powered by DSPy for intelligent memory management
+-  **Memory Operations**: Add, update, delete, and merge memories automatically
+- **Async Architecture**: Built with async/await for efficient concurrent operations
+- **Qdrant Integration**: Local vector database for fast similarity search
 
----
 
-## Architecture
+## Running the code
 
+To run the memory-enabled chatbot, first follow the installation process listed below. Crucially, you must set up the environment variables, have a Qdrant server running, and then run the following command:
 ```
-FastAPI (main.py)
-  └─ /chat
-      ├─ memory_commands.detect_memory_command()
-      ├─ response_generator.fetch_similar_memories_logic()  -> Qdrant
-      ├─ DSPy predictor (NovaResponseSignature)             -> Ollama (/v1)
-      └─ update_memory.update_memories()                    -> Qdrant (save)
+uv run main.py
 ```
 
-Key modules:
-- `main.py` — FastAPI endpoints (`/chat`, plus `/stt` and `/speak` if voice is enabled) fileciteturn1file8
-- `mem/response_generator.py` — retrieval + DSPy response signature and LM config fileciteturn1file9
-- `mem/update_memory.py` — DSPy-based memory extraction and save + dedup fileciteturn1file14
-- `mem/vectordb.py` — Qdrant collection + CRUD + dedup helper fileciteturn1file2
-- `mem/memory_commands.py` — command detection + handlers fileciteturn1file1
-
----
-
-## Requirements
-
-- Python 3.10+ (3.11 recommended)
-- **Ollama** running locally
-- **Qdrant** running locally (Docker recommended)
-- `dspy`, `fastapi`, `uvicorn`, `qdrant-client`, `litellm` (installed via `requirements.txt` / `pyproject.toml` depending on your setup)
-
----
-
-## Quickstart (local)
-
-### 1) Start Qdrant
-```bash
-docker run -p 6333:6333 -p 6334:6334 \
-  -v qdrant_storage:/qdrant/storage \
-  qdrant/qdrant:latest
+You can also add a user_id when running main.py.
+```
+uv run main.py 2
 ```
 
-### 2) Start Ollama
-Install Ollama and pull a model.
-```bash
-ollama pull dolphin3
-```
+Note that user_id needs to be an integer. All memories are user-scoped.
 
-Nova uses the OpenAI-compatible API at:
-- `http://127.0.0.1:11434/v1/` fileciteturn1file9
 
-### 3) Set environment variables
-Create `.env`:
+## Getting Started
 
-```bash
-# Qdrant
-QDRANT_URL=http://localhost:6333
-EMBEDDING_DIM=768
+### Prerequisites
 
-# Memory thresholds
-DUPLICATE_THRESHOLD=0.90
-FORGET_THRESHOLD=0.85
+-   **Python 3.10+** (required)
+-   **`uv`** (recommended) or `pip` for package management
+-   **Qdrant** running locally (or use Qdrant Cloud)
 
-# Ollama OpenAI-compatible base
-OLLAMA_API_BASE=http://127.0.0.1:11434/v1/
-```
+### Installation
 
-### 4) Install and run
-```bash
-pip install -r requirements.txt
-uvicorn main:app --reload --port 8000
-```
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/avbiswas/mem0-dspy
+    cd mem0-dspy
+    ```
 
-### 5) Test
-```bash
-curl -X POST http://localhost:8000/chat \
-  -H "Content-Type: application/json" \
-  -d '{"messages":[{"role":"user","content":"My name is Aaron"}],"user_id":1}'
-```
+2.  **Install dependencies:**
+    ```bash
+    # Using uv (recommended)
+    uv sync
+    ```
 
----
+3.  **Start Qdrant (for the custom implementation):**
+    Follow the [Qdrant installation guide](https://qdrant.tech/documentation/quickstart/)
+    
+    **Option 1: Using Docker**
+    ```
+    docker run -p 6333:6333 -p 6334:6334 -v "$(pwd)/qdrant_storage:/qdrant/storage:z" qdrant/qdrant
+    ```
 
-## Memory command cheat sheet
+    **Option 2: Alternatively you can create a new free Qdrant cluster**
+    
 
-Try these in chat:
+4.  **Set up your API keys:**
+    
+    **Required API Keys:**
+    - `OPENAI_API_KEY` - For OpenAI models (embeddings and chat)
 
-- `List my memories`
-- `Search memories about coffee`
-- `How many memories do you have?`
-- `Forget that I like pizza`
-- `Forget everything`
+    `gpt-5-mini` is hardcoded at certain sections of the code. Feel free to overwrite it, or hide model names behind a config file!
 
-Patterns are defined in `mem/memory_commands.py`. fileciteturn1file1
+    To run the `basic_mem0_chatbot.py` script, you will also need a MEM0_API_KEY. [Get Mem0 API Key here](https://mem0.dev/api-keys-avb)
 
----
+    
+    **Environment Management Options:**
+    
+    **Option 1: Using `direnv` (Recommended)**
+    ```bash
+    # Install direnv first, then create .envrc file
+    echo "export OPENAI_API_KEY=your_key_here" >> .envrc
+    direnv allow
+    ```
+    
+    **Option 2: Using `.env` file with python-dotenv**
+    ```bash
+    # Create .env file
+    touch .env
+    ```
+    Add your keys to `.env`:
+    ```env
+    OPENAI_API_KEY=your_key_here
+    ```
+    *Note: This requires adding `dotenv.load_dotenv()` to your Python scripts.*
+    
+    **Option 3: Export environment variables**
+    ```bash
+    export OPENAI_API_KEY=your_key_here
+    ```
 
-## Memory schema
+5.  **Initialize the Qdrant collection:**
+    ```bash
+    uv run python -m mem.vectordb
+    ```
 
-### Payload fields
-- `user_id` (int)
-- `memory_text` (str)
-- `categories` (list[str])
-- `date` (str)
-- `fact_key` (str, default `other.misc`) fileciteturn1file2
+6.  **Run the chatbot:**
+    ```bash
+    # Custom implementation with DSPy and Qdrant
+    # Default user_id (1)
+    uv run main.py
+    
+    # Or specify a custom user_id
+    uv run main.py <user_id>
+    # Example: uv run main.py 42
+    
+    # Or the basic mem0 implementation
+    uv run python basic_mem0_chatbot.py
+    ```
 
-### Category ontology
-Defined in `mem/vectordb.py`. fileciteturn1file3
+## Recommended changes to do before you can use in Prod
 
----
+- **Background Processes** : A lot of the code is structured to showcase how memory retrieval works. If you are thinking to use this in prod, I will recommend to run some of the code (especially about memory upkeeping) as a background process instead of a blocking call.
+- **In-session memory management**: Summarize multi-turn chat into a single string when they reach a certain length. The current code keeps passing the entire history of chat into the LLM at each step. This could be slow if you're not hitting KV Cache.
+- Better **UI/UX experience** optimized to lower Time-to-first-token
+- **Create a config file** that contains runtime configurations. Some important ones are:
+    - LLMs used for retrieval/updating/response gen
+    - Embedding size of text vectors
+- **Logging, Tracing, Error Handling** at various stages of the code
 
-## Roadmap (planned)
+## Project Structure
 
-Short-term:
-- Memory editing (update existing memory without deleting)
-- Importance levels + re-ranking
-- Confirmation prompts for risky/identity changes
-- Contradiction detection + user resolution
+### Main Files
 
-Medium-term:
-- Expiration/TTL memories (time-based + review-based)
-- Tags + tag filtering
-- Memory versioning + history queries
-- Import/export + backup
+-   **`main.py`**: Entry point for the custom memory-enabled chatbot
+-   **`basic_mem0_chatbot.py`**: Simple implementation using the `mem0` library
 
-Long-term:
-- Graph relationships between memories
-- Clustering + summarization
-- Multi-profile / shared memory permissions
+### Memory Module (`mem/`)
 
----
+-   **`response_generator.py`**: Core chatbot logic with ReAct agent for response generation and memory search
+-   **`update_memory.py`**: ReAct agent for intelligent memory management (add/update/delete operations)
+-   **`vectordb.py`**: Qdrant integration for vector storage and retrieval operations
+-   **`generate_embeddings.py`**: OpenAI embedding generation utilities
+
+## How It Works
+
+### 1. Basic Flow
+
+User Input → Search Memories → Generate Response → Update Memory (if needed) → Display Response
+
+### 2. Memory Management
+
+The system uses a **ReAct agent** to intelligently decide whether to:
+- **ADD**: Create new memories for novel information
+- **UPDATE**: Enhance existing memories with richer details
+- **DELETE**: Remove outdated or redundant memories
+- **NOOP**: Take no action when memory is already accurate
+
+### 3. Memory Retrieval
+
+Memories are:
+- Embedded using OpenAI's `text-embedding-3-small` model (64 dimensions)
+- Stored in Qdrant with metadata (categories, user_id, date)
+- Retrieved using semantic similarity with configurable score thresholds
+- Organized by categories for efficient filtering
+
 
 ## Contributing
 
-PRs welcome. Suggested workflow:
-1. Fork
-2. Create feature branch: `feat/<name>`
-3. Add tests (or at least a reproducible curl script)
-4. Open PR with before/after behavior
-
----
+Feel free to fork and customize it your own repositories. I will not be accepting pull requests nor maintaining this code!
 
 ## License
 
-Choose one:
-- MIT (recommended for maximum reuse), or
-- Apache-2.0
-
-If you haven’t chosen yet, add an MIT `LICENSE` file and you’re good.
+See the LICENSE file for details.
